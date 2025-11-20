@@ -291,6 +291,109 @@ class ApiClient {
     );
     return response.data;
   }
+
+  // ============= Phase 4: Authentication =============
+  async register(email: string, password: string, full_name: string, organization?: string) {
+    const response = await this.client.post('/auth/register', {
+      email,
+      password,
+      full_name,
+      organization
+    });
+    return response.data;
+  }
+
+  async login(email: string, password: string) {
+    const response = await this.client.post('/auth/token',
+      new URLSearchParams({
+        username: email,
+        password: password
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+    return response.data;
+  }
+
+  async getCurrentUser() {
+    const response = await this.client.get('/auth/me');
+    return response.data;
+  }
+
+  async updateProfile(full_name?: string, organization?: string) {
+    const response = await this.client.put('/auth/me', null, {
+      params: { full_name, organization }
+    });
+    return response.data;
+  }
+
+  async changePassword(current_password: string, new_password: string) {
+    const response = await this.client.post('/auth/change-password', null, {
+      params: { current_password, new_password }
+    });
+    return response.data;
+  }
+
+  // ============= Phase 4: Project Sharing =============
+  async shareProject(projectId: number, email: string, permissions: {
+    can_view?: boolean;
+    can_edit?: boolean;
+    can_delete?: boolean;
+    can_share?: boolean;
+  }) {
+    const response = await this.client.post(`/sharing/${projectId}/shares`, {
+      email,
+      ...permissions
+    });
+    return response.data;
+  }
+
+  async listProjectShares(projectId: number) {
+    const response = await this.client.get(`/sharing/${projectId}/shares`);
+    return response.data;
+  }
+
+  async updateSharePermissions(projectId: number, shareId: number, permissions: any) {
+    const response = await this.client.put(`/sharing/${projectId}/shares/${shareId}`, permissions);
+    return response.data;
+  }
+
+  async revokeShare(projectId: number, shareId: number) {
+    const response = await this.client.delete(`/sharing/${projectId}/shares/${shareId}`);
+    return response.data;
+  }
+
+  async listSharedWithMe() {
+    const response = await this.client.get('/sharing/shared-with-me');
+    return response.data;
+  }
+
+  // ============= Phase 4: Forecast Comparison =============
+  async createComparison(projectId: number, comparison_name: string, forecast_ids: number[]) {
+    const response = await this.client.post(`/comparison/${projectId}/comparisons`, {
+      comparison_name,
+      forecast_ids
+    });
+    return response.data;
+  }
+
+  async listComparisons(projectId: number) {
+    const response = await this.client.get(`/comparison/${projectId}/comparisons`);
+    return response.data;
+  }
+
+  async getComparison(projectId: number, comparisonId: number) {
+    const response = await this.client.get(`/comparison/${projectId}/comparisons/${comparisonId}`);
+    return response.data;
+  }
+
+  async deleteComparison(projectId: number, comparisonId: number) {
+    const response = await this.client.delete(`/comparison/${projectId}/comparisons/${comparisonId}`);
+    return response.data;
+  }
 }
 
 export const api = new ApiClient();

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import projects, datasets, forecasts, events, exclusions, adjustments, diagnostics, insights
+from app.routers import projects, datasets, forecasts, events, exclusions, adjustments, diagnostics, insights, auth, sharing, comparison
 import os
 
 settings = get_settings()
@@ -19,8 +19,8 @@ os.makedirs(settings.upload_dir, exist_ok=True)
 # Create FastAPI app
 app = FastAPI(
     title=settings.app_name,
-    version="0.3.0",  # Phase 3
-    description="Production-grade forecasting API with ensemble models, events, LLM insights, and advanced diagnostics",
+    version="1.0.0",  # Phase 4 - Production Ready
+    description="Enterprise-grade forecasting platform with authentication, collaboration, and advanced analytics",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -48,6 +48,11 @@ app.include_router(adjustments.router, prefix="/api/adjustments", tags=["Adjustm
 # Include routers (Phase 3)
 app.include_router(diagnostics.router, prefix="/api/diagnostics", tags=["Diagnostics"])
 app.include_router(insights.router, prefix="/api/insights", tags=["Insights"])
+
+# Include routers (Phase 4)
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(sharing.router, prefix="/api/sharing", tags=["Collaboration"])
+app.include_router(comparison.router, prefix="/api/comparison", tags=["Comparison"])
 
 
 @app.get("/")

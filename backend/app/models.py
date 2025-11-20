@@ -27,11 +27,15 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    full_name = Column(String)
+    organization = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
+    last_login = Column(DateTime(timezone=True))
 
     # Relationships
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+    shared_projects = relationship("ProjectShare", back_populates="user", cascade="all, delete-orphan")
 
 
 class Project(Base):
@@ -48,6 +52,11 @@ class Project(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     is_archived = Column(Boolean, default=False)
+
+    # Alias for clarity
+    @property
+    def owner_id(self):
+        return self.user_id
 
     # Relationships
     owner = relationship("User", back_populates="projects")
@@ -71,6 +80,15 @@ class Project(Base):
     )
     insights = relationship(
         "ProjectInsight", back_populates="project", cascade="all, delete-orphan"
+    )
+    shares = relationship(
+        "ProjectShare", back_populates="project", cascade="all, delete-orphan"
+    )
+    versions = relationship(
+        "ProjectVersion", back_populates="project", cascade="all, delete-orphan"
+    )
+    scheduled_forecasts = relationship(
+        "ScheduledForecast", back_populates="project", cascade="all, delete-orphan"
     )
 
 
@@ -296,3 +314,114 @@ class ProjectInsight(Base):
 
     # Relationships
     project = relationship("Project", back_populates="insights")
+
+
+# ============= Phase 4 Models =============
+
+
+class ProjectShare(Base):
+    """Project sharing and collaboration (Phase 4)"""
+
+    __tablename__ = "project_shares"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Permissions
+    can_view = Column(Boolean, default=True)
+    can_edit = Column(Boolean, default=False)
+    can_delete = Column(Boolean, default=False)
+    can_share = Column(Boolean, default=False)
+
+    # Status
+    is_active = Column(Boolean, default=True)
+    shared_at = Column(DateTime(timezone=True), server_default=func.now())
+    shared_by = Column(Integer, ForeignKey("users.id"))
+
+    # Relationships
+    project = relationship("Project", back_populates="shares")
+    user = relationship("User", back_populates="shared_projects", foreign_keys=[user_id])
+
+
+class ProjectVersion(Base):
+    """Project versioning for rollback and history (Phase 4)"""
+
+    __tablename__ = "project_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+
+    version_number = Column(Integer, nullable=False)
+    version_name = Column(String)
+    description = Column(Text)
+
+    # Snapshot data
+    dataset_snapshot = Column(JSON)  # Metadata about datasets at this version
+    forecasts_snapshot = Column(JSON)  # Forecasts generated at this version
+    events_snapshot = Column(JSON)  # Events configured at this version
+
+    # Version metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"))
+    is_current = Column(Boolean, default=False)
+
+    # Relationships
+    project = relationship("Project", back_populates="versions")
+
+
+class ScheduledForecast(Base):
+    """Scheduled automated forecast generation (Phase 4)"""
+
+    __tablename__ = "scheduled_forecasts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+
+    # Schedule configuration
+    schedule_name = Column(String, nullable=False)
+    schedule_type = Column(String, nullable=False)  # 'daily', 'weekly', 'monthly'
+    schedule_time = Column(String)  # HH:MM format
+    schedule_day = Column(Integer)  # Day of week (1-7) or month (1-31)
+
+    # Forecast parameters
+    forecast_horizon = Column(Integer, default=12)
+    confidence_level = Column(Integer, default=90)
+    models_to_use = Column(JSON)  # List of model names
+    use_events = Column(Boolean, default=True)
+    use_exclusions = Column(Boolean, default=True)
+
+    # Status
+    is_active = Column(Boolean, default=True)
+    last_run = Column(DateTime(timezone=True))
+    next_run = Column(DateTime(timezone=True))
+    run_count = Column(Integer, default=0)
+
+    # Notifications
+    notify_on_completion = Column(Boolean, default=False)
+    notification_emails = Column(JSON)  # List of email addresses
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"))
+
+    # Relationships
+    project = relationship("Project", back_populates="scheduled_forecasts")
+
+
+class ForecastComparison(Base):
+    """Saved forecast comparisons (Phase 4)"""
+
+    __tablename__ = "forecast_comparisons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+
+    comparison_name = Column(String, nullable=False)
+    forecast_ids = Column(JSON, nullable=False)  # List of forecast IDs to compare
+
+    # Comparison results
+    comparison_metrics = Column(JSON)  # Statistical comparison results
+    winner_forecast_id = Column(Integer)  # ID of best performing forecast
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"))
