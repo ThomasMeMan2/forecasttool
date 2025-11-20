@@ -171,3 +171,125 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     status_code: int
+
+
+# ============= Phase 2: Event Schemas =============
+class GlobalEventBase(BaseModel):
+    event_name: str = Field(..., min_length=1)
+    event_date: datetime
+    event_type: Optional[str] = None  # 'holiday', 'campaign', 'price_change', 'custom'
+    impact_value: Optional[float] = None
+    description: Optional[str] = None
+
+
+class GlobalEventCreate(GlobalEventBase):
+    pass
+
+
+class GlobalEventUpdate(BaseModel):
+    event_name: Optional[str] = None
+    event_date: Optional[datetime] = None
+    event_type: Optional[str] = None
+    impact_value: Optional[float] = None
+    description: Optional[str] = None
+
+
+class GlobalEventResponse(GlobalEventBase):
+    id: int
+    project_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IDSpecificEventBase(BaseModel):
+    timeseries_id: int
+    event_name: str = Field(..., min_length=1)
+    event_date: datetime
+    event_type: Optional[str] = None  # 'stockout', 'promotion', 'closure', 'custom'
+    impact_value: Optional[float] = None
+    description: Optional[str] = None
+
+
+class IDSpecificEventCreate(IDSpecificEventBase):
+    pass
+
+
+class IDSpecificEventUpdate(BaseModel):
+    event_name: Optional[str] = None
+    event_date: Optional[datetime] = None
+    event_type: Optional[str] = None
+    impact_value: Optional[float] = None
+    description: Optional[str] = None
+
+
+class IDSpecificEventResponse(IDSpecificEventBase):
+    id: int
+    project_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============= Phase 2: User Exclusion Schemas =============
+class UserExclusionBase(BaseModel):
+    timeseries_id: int
+    start_date: datetime
+    end_date: datetime
+    reason: str = Field(..., min_length=1)
+    is_active: bool = True
+
+
+class UserExclusionCreate(UserExclusionBase):
+    pass
+
+
+class UserExclusionUpdate(BaseModel):
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    reason: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class UserExclusionResponse(UserExclusionBase):
+    id: int
+    project_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============= Phase 2: Forecast Adjustment Schemas =============
+class ForecastAdjustmentBase(BaseModel):
+    period_timestamp: datetime
+    adjusted_value: float
+    adjustment_reason: str = Field(..., min_length=1)
+
+
+class ForecastAdjustmentCreate(ForecastAdjustmentBase):
+    forecast_id: int
+    original_value: float
+
+
+class ForecastAdjustmentResponse(ForecastAdjustmentBase):
+    id: int
+    forecast_id: int
+    original_value: float
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============= Phase 2: LLM Insight Schemas =============
+class ProjectInsightResponse(BaseModel):
+    id: int
+    project_id: int
+    timeseries_id: Optional[int] = None
+    forecast_id: Optional[int] = None
+    insight_type: str
+    insight_text: str
+    confidence: Optional[float] = None
+    llm_model: Optional[str] = None
+    generated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

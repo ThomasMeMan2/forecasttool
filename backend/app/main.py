@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import projects, datasets, forecasts
+from app.routers import projects, datasets, forecasts, events, exclusions, adjustments
 import os
 
 settings = get_settings()
@@ -19,8 +19,8 @@ os.makedirs(settings.upload_dir, exist_ok=True)
 # Create FastAPI app
 app = FastAPI(
     title=settings.app_name,
-    version=settings.version,
-    description="Production-grade forecasting API for non-technical users",
+    version="0.2.0",  # Phase 2
+    description="Production-grade forecasting API with ensemble models, events, and LLM insights",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -35,10 +35,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include routers (Phase 1)
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
 app.include_router(datasets.router, prefix="/api/datasets", tags=["Datasets"])
 app.include_router(forecasts.router, prefix="/api/forecasts", tags=["Forecasts"])
+
+# Include routers (Phase 2)
+app.include_router(events.router, prefix="/api/events", tags=["Events"])
+app.include_router(exclusions.router, prefix="/api/exclusions", tags=["Exclusions"])
+app.include_router(adjustments.router, prefix="/api/adjustments", tags=["Adjustments"])
 
 
 @app.get("/")

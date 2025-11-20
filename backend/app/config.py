@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     default_forecast_horizon: int = 12
     default_confidence_level: int = 90
 
+    # LLM Integration (Phase 2) - Optional
+    llm_provider: str = "template"  # 'openai', 'anthropic', 'ollama', 'template'
+    llm_model: str = "gpt-4-turbo-preview"
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    ollama_base_url: str = "http://localhost:11434"
+    enable_llm_insights: bool = False  # Set to True when API keys configured
+
     class Config:
         env_file = ".env"
         case_sensitive = False
