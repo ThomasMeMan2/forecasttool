@@ -62,9 +62,14 @@ export interface Forecast {
   timeseries_id: number;
   ts_id: string;
   model_used: string;
+  ensemble_models?: string[];
+  ensemble_weights?: Record<string, number>;
   forecast_horizon: number;
   confidence_level: number;
   forecast_data: ForecastPoint[];
+  benchmark_model?: string;
+  benchmark_forecast?: Array<{ timestamp: string; value: number }>;
+  forecast_value_added?: number;
   confidence_score?: number;
   requires_manual_review: boolean;
   anomaly_flags?: string[];
@@ -85,4 +90,95 @@ export interface DataValidationResult {
   issues: string[];
   warnings: string[];
   statistics?: Record<string, number>;
+}
+
+// ============= Phase 2 Types =============
+
+export interface GlobalEvent {
+  id: number;
+  project_id: number;
+  event_name: string;
+  event_date: string;
+  event_type?: string;
+  impact_value?: number;
+  description?: string;
+  created_at: string;
+}
+
+export interface GlobalEventCreate {
+  event_name: string;
+  event_date: string;
+  event_type?: string;
+  impact_value?: number;
+  description?: string;
+}
+
+export interface IDSpecificEvent {
+  id: number;
+  project_id: number;
+  timeseries_id: number;
+  event_name: string;
+  event_date: string;
+  event_type?: string;
+  impact_value?: number;
+  description?: string;
+  created_at: string;
+}
+
+export interface IDSpecificEventCreate {
+  timeseries_id: number;
+  event_name: string;
+  event_date: string;
+  event_type?: string;
+  impact_value?: number;
+  description?: string;
+}
+
+export interface UserExclusion {
+  id: number;
+  project_id: number;
+  timeseries_id: number;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface UserExclusionCreate {
+  timeseries_id: number;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  is_active?: boolean;
+}
+
+export interface ForecastAdjustment {
+  id: number;
+  forecast_id: number;
+  period_timestamp: string;
+  original_value: number;
+  adjusted_value: number;
+  adjustment_reason: string;
+  created_at: string;
+}
+
+export interface ForecastAdjustmentCreate {
+  forecast_id: number;
+  period_timestamp: string;
+  original_value: number;
+  adjusted_value: number;
+  adjustment_reason: string;
+}
+
+export interface ProjectInsight {
+  id: number;
+  project_id: number;
+  timeseries_id?: number;
+  forecast_id?: number;
+  insight_type: string;
+  insight_text: string;
+  confidence?: number;
+  llm_model?: string;
+  generated_at: string;
 }

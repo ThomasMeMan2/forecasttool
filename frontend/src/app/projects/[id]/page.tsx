@@ -11,9 +11,13 @@ import {
   FileText,
   Download,
   AlertCircle,
+  Calendar,
+  Ban,
 } from 'lucide-react';
 import DataUpload from '@/components/DataUpload';
 import ForecastView from '@/components/ForecastView';
+import EventsManager from '@/components/EventsManager';
+import ExclusionsManager from '@/components/ExclusionsManager';
 
 export default function ProjectDetailPage() {
   const router = useRouter();
@@ -26,7 +30,7 @@ export default function ProjectDetailPage() {
   const [forecasts, setForecasts] = useState<Forecast[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'data' | 'forecast'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'forecast' | 'events' | 'exclusions'>('data');
 
   useEffect(() => {
     loadProjectData();
@@ -168,6 +172,30 @@ export default function ProjectDetailPage() {
               <TrendingUp size={16} className="inline mr-2" />
               Forecasts
             </button>
+            <button
+              onClick={() => setActiveTab('events')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'events'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Calendar size={16} className="inline mr-2" />
+              Events
+              <span className="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Phase 2</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('exclusions')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'exclusions'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Ban size={16} className="inline mr-2" />
+              Exclusions
+              <span className="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Phase 2</span>
+            </button>
           </nav>
         </div>
       </div>
@@ -182,10 +210,22 @@ export default function ProjectDetailPage() {
             onDataUploaded={handleDataUploaded}
             onGenerateForecast={handleForecastGenerated}
           />
-        ) : (
+        ) : activeTab === 'forecast' ? (
           <ForecastView
             projectId={projectId}
             forecasts={forecasts}
+            timeseries={timeseries}
+            onRefresh={loadProjectData}
+          />
+        ) : activeTab === 'events' ? (
+          <EventsManager
+            projectId={projectId}
+            timeseries={timeseries}
+            onRefresh={loadProjectData}
+          />
+        ) : (
+          <ExclusionsManager
+            projectId={projectId}
             timeseries={timeseries}
             onRefresh={loadProjectData}
           />

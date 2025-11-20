@@ -94,6 +94,11 @@ export default function ForecastView({
               </div>
               <p className="text-sm text-gray-600 mb-1">
                 Model: {forecast.model_used}
+                {forecast.ensemble_models && forecast.ensemble_models.length > 0 && (
+                  <span className="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                    {forecast.ensemble_models.length} models
+                  </span>
+                )}
               </p>
               <p className="text-sm text-gray-600 mb-1">
                 Horizon: {forecast.forecast_horizon} periods
@@ -101,6 +106,11 @@ export default function ForecastView({
               {forecast.confidence_score !== null && (
                 <p className="text-sm text-gray-600">
                   Confidence: {forecast.confidence_score.toFixed(0)}/100
+                </p>
+              )}
+              {forecast.forecast_value_added !== null && forecast.forecast_value_added !== undefined && (
+                <p className={`text-sm font-medium ${forecast.forecast_value_added > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  FVA: {forecast.forecast_value_added > 0 ? '+' : ''}{forecast.forecast_value_added.toFixed(1)}%
                 </p>
               )}
             </div>
@@ -132,6 +142,11 @@ export default function ForecastView({
                 <p className="font-medium text-gray-900">
                   {selectedForecast.model_used}
                 </p>
+                {selectedForecast.ensemble_models && selectedForecast.ensemble_models.length > 0 && (
+                  <p className="text-xs text-purple-600 mt-1">
+                    {selectedForecast.ensemble_models.join(', ')}
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Confidence Score</p>
@@ -147,15 +162,30 @@ export default function ForecastView({
                   </p>
                 </div>
               )}
-              {selectedForecast.rmse !== null && (
+              {selectedForecast.forecast_value_added !== null && selectedForecast.forecast_value_added !== undefined && (
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">RMSE</p>
-                  <p className="font-medium text-gray-900">
-                    {selectedForecast.rmse.toFixed(2)}
+                  <p className="text-sm text-gray-600 mb-1">FVA vs Benchmark</p>
+                  <p className={`font-medium ${selectedForecast.forecast_value_added > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedForecast.forecast_value_added > 0 ? '+' : ''}{selectedForecast.forecast_value_added.toFixed(1)}%
                   </p>
                 </div>
               )}
             </div>
+
+            {/* Ensemble Weights */}
+            {selectedForecast.ensemble_weights && Object.keys(selectedForecast.ensemble_weights).length > 0 && (
+              <div className="mb-6 p-4 bg-purple-50 rounded-lg">
+                <h4 className="text-sm font-medium text-purple-900 mb-2">Ensemble Weights</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {Object.entries(selectedForecast.ensemble_weights).map(([model, weight]) => (
+                    <div key={model} className="text-sm">
+                      <span className="text-gray-700">{model}:</span>{' '}
+                      <span className="font-medium text-purple-700">{(weight * 100).toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Warnings and Flags */}
             {selectedForecast.requires_manual_review && (

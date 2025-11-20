@@ -133,6 +133,91 @@ class ApiClient {
     );
     return response.data;
   }
+
+  // ============= Phase 2: Events =============
+  async createGlobalEvent(projectId: number, data: any) {
+    const response = await this.client.post(`/events/${projectId}/global-events`, data);
+    return response.data;
+  }
+
+  async getGlobalEvents(projectId: number, eventType?: string) {
+    const response = await this.client.get(`/events/${projectId}/global-events`, {
+      params: eventType ? { event_type: eventType } : {},
+    });
+    return response.data;
+  }
+
+  async updateGlobalEvent(projectId: number, eventId: number, data: any) {
+    const response = await this.client.put(`/events/${projectId}/global-events/${eventId}`, data);
+    return response.data;
+  }
+
+  async deleteGlobalEvent(projectId: number, eventId: number) {
+    const response = await this.client.delete(`/events/${projectId}/global-events/${eventId}`);
+    return response.data;
+  }
+
+  async createIDEvent(projectId: number, data: any) {
+    const response = await this.client.post(`/events/${projectId}/id-events`, data);
+    return response.data;
+  }
+
+  async getIDEvents(projectId: number, timeseriesId?: number, eventType?: string) {
+    const params: any = {};
+    if (timeseriesId) params.timeseries_id = timeseriesId;
+    if (eventType) params.event_type = eventType;
+    const response = await this.client.get(`/events/${projectId}/id-events`, { params });
+    return response.data;
+  }
+
+  async updateIDEvent(projectId: number, eventId: number, data: any) {
+    const response = await this.client.put(`/events/${projectId}/id-events/${eventId}`, data);
+    return response.data;
+  }
+
+  async deleteIDEvent(projectId: number, eventId: number) {
+    const response = await this.client.delete(`/events/${projectId}/id-events/${eventId}`);
+    return response.data;
+  }
+
+  // ============= Phase 2: Exclusions =============
+  async createExclusion(projectId: number, data: any) {
+    const response = await this.client.post(`/exclusions/${projectId}/exclusions`, data);
+    return response.data;
+  }
+
+  async getExclusions(projectId: number, timeseriesId?: number, activeOnly: boolean = true) {
+    const params: any = { active_only: activeOnly };
+    if (timeseriesId) params.timeseries_id = timeseriesId;
+    const response = await this.client.get(`/exclusions/${projectId}/exclusions`, { params });
+    return response.data;
+  }
+
+  async updateExclusion(projectId: number, exclusionId: number, data: any) {
+    const response = await this.client.put(`/exclusions/${projectId}/exclusions/${exclusionId}`, data);
+    return response.data;
+  }
+
+  async deleteExclusion(projectId: number, exclusionId: number) {
+    const response = await this.client.delete(`/exclusions/${projectId}/exclusions/${exclusionId}`);
+    return response.data;
+  }
+
+  // ============= Phase 2: Adjustments =============
+  async createAdjustment(projectId: number, data: any) {
+    const response = await this.client.post(`/adjustments/${projectId}/adjustments`, data);
+    return response.data;
+  }
+
+  async getAdjustments(projectId: number, forecastId: number) {
+    const response = await this.client.get(`/adjustments/${projectId}/forecasts/${forecastId}/adjustments`);
+    return response.data;
+  }
+
+  async deleteAdjustment(projectId: number, adjustmentId: number) {
+    const response = await this.client.delete(`/adjustments/${projectId}/adjustments/${adjustmentId}`);
+    return response.data;
+  }
 }
 
 export const api = new ApiClient();
