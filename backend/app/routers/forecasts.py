@@ -11,6 +11,10 @@ from app.database import get_db
 from app.models import Project, ProjectDataset, TimeSeries, Forecast
 from app.schemas import ForecastRequest, ForecastResponse, ForecastPoint, MessageResponse
 from app.services.forecast_engine import ForecastEngine
+from app.services.enhanced_forecast_engine import EnhancedForecastEngine
+from app.models import GlobalEvent, IDSpecificEvent, UserExclusion
+import pandas as pd
+from datetime import datetime
 
 router = APIRouter()
 
@@ -353,3 +357,250 @@ async def export_forecast_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.post(
+    "/{project_id}/generate-enhanced",
+    response_model=List[ForecastResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+async def generate_enhanced_forecasts(
+    project_id: int,
+    request: ForecastRequest,
+    use_events: bool = True,
+    use_exclusions: bool = True,
+    models: Optional[List[str]] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate enhanced ensemble forecasts with event-aware forecasting (Phase 3).
+
+    Features:
+    - Multi-model ensemble forecasting
+    - Event regressors (global and ID-specific events)
+    - User exclusions applied
+    - Forecast Value Added (FVA)
+    - Advanced quality metrics
+
+    Args:
+        project_id: Project ID
+        request: Forecast parameters
+        use_events: Whether to use events as regressors (default: True)
+        use_exclusions: Whether to apply user exclusions (default: True)
+        models: List of models to use (default: ['AutoARIMA', 'AutoETS', 'Prophet'])
+    """
+    # Verify project exists
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
+    # Get latest dataset
+    latest_dataset = (
+        db.query(ProjectDataset)
+        .filter(ProjectDataset.project_id == project_id, ProjectDataset.type == "history")
+        .order_by(ProjectDataset.version.desc())
+        .first()
+    )
+
+    if not latest_dataset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No dataset found. Please upload data first.",
+        )
+
+    # Load data
+    try:
+        data = pl.read_csv(latest_dataset.file_path)
+        data = data.with_columns(
+            pl.col("timestamp").str.strptime(pl.Datetime, format="%+", strict=False)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error loading dataset: {str(e)}",
+        )
+
+    # Determine which timeseries to forecast
+    if request.timeseries_ids:
+        ts_ids_to_forecast = request.timeseries_ids
+    else:
+        ts_records = (
+            db.query(TimeSeries).filter(TimeSeries.project_id == project_id).all()
+        )
+        ts_ids_to_forecast = [ts.ts_id for ts in ts_records]
+
+    if not ts_ids_to_forecast:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No timeseries found to forecast",
+        )
+
+    # Load global events if requested
+    global_events_df = None
+    if use_events:
+        global_events = (
+            db.query(GlobalEvent)
+            .filter(GlobalEvent.project_id == project_id)
+            .all()
+        )
+        if global_events:
+            global_events_df = pd.DataFrame([
+                {
+                    "event_date": event.event_date,
+                    "event_type": event.event_type or "custom",
+                    "event_name": event.event_name,
+                }
+                for event in global_events
+            ])
+
+    # Initialize enhanced forecast engine
+    engine = EnhancedForecastEngine()
+
+    # Default models if not specified
+    if models is None:
+        models = ["AutoARIMA", "AutoETS", "Prophet"]
+
+    # Generate forecasts
+    forecast_results = []
+
+    for ts_id in ts_ids_to_forecast:
+        # Get TimeSeries record
+        ts_record = (
+            db.query(TimeSeries)
+            .filter(TimeSeries.project_id == project_id, TimeSeries.ts_id == ts_id)
+            .first()
+        )
+
+        if not ts_record:
+            continue
+
+        # Load ID-specific events for this timeseries
+        id_events_df = None
+        if use_events:
+            id_events = (
+                db.query(IDSpecificEvent)
+                .filter(
+                    IDSpecificEvent.project_id == project_id,
+                    IDSpecificEvent.timeseries_id == ts_record.id,
+                )
+                .all()
+            )
+            if id_events:
+                id_events_df = pd.DataFrame([
+                    {
+                        "event_date": event.event_date,
+                        "event_type": event.event_type or "custom",
+                        "event_name": event.event_name,
+                    }
+                    for event in id_events
+                ])
+
+        # Combine global and ID-specific events
+        combined_events = None
+        if global_events_df is not None or id_events_df is not None:
+            dfs_to_concat = []
+            if global_events_df is not None:
+                dfs_to_concat.append(global_events_df)
+            if id_events_df is not None:
+                dfs_to_concat.append(id_events_df)
+
+            if dfs_to_concat:
+                combined_events = pd.concat(dfs_to_concat, ignore_index=True)
+
+        # Load user exclusions for this timeseries
+        exclusion_periods = None
+        if use_exclusions:
+            exclusions = (
+                db.query(UserExclusion)
+                .filter(
+                    UserExclusion.project_id == project_id,
+                    UserExclusion.timeseries_id == ts_record.id,
+                    UserExclusion.is_active == True,
+                )
+                .all()
+            )
+            if exclusions:
+                exclusion_periods = [
+                    (excl.start_date, excl.end_date) for excl in exclusions
+                ]
+
+        # Generate enhanced forecast
+        result = engine.generate_ensemble_forecast(
+            data=data,
+            ts_id=ts_id,
+            horizon=request.horizon,
+            confidence_levels=[80, 90],
+            models=models,
+            events=combined_events,
+            exclusions=exclusion_periods,
+        )
+
+        if not result["success"]:
+            continue
+
+        # Create Forecast record with ensemble data
+        forecast_record = Forecast(
+            project_id=project_id,
+            timeseries_id=ts_record.id,
+            model_used=result["model_used"],
+            ensemble_models=result.get("ensemble_models"),
+            ensemble_weights=result.get("ensemble_weights"),
+            forecast_horizon=request.horizon,
+            confidence_level=request.confidence_level,
+            forecast_data=result["forecast_points"],
+            benchmark_model=result.get("benchmark_model"),
+            benchmark_data=result.get("benchmark_forecast"),
+            forecast_value_added=result.get("forecast_value_added"),
+            confidence_score=result["confidence_score"],
+            requires_manual_review=result["requires_manual_review"],
+            anomaly_flags=result["anomaly_flags"],
+            mape=result["metrics"].get("mape"),
+            rmse=result["metrics"].get("rmse"),
+            mae=result["metrics"].get("mae"),
+        )
+
+        db.add(forecast_record)
+        db.flush()
+        db.refresh(forecast_record)
+
+        # Format response
+        forecast_points = [
+            ForecastPoint(**point) for point in result["forecast_points"]
+        ]
+
+        forecast_response = ForecastResponse(
+            id=forecast_record.id,
+            project_id=project_id,
+            timeseries_id=ts_record.id,
+            ts_id=ts_id,
+            model_used=result["model_used"],
+            ensemble_models=result.get("ensemble_models"),
+            ensemble_weights=result.get("ensemble_weights"),
+            forecast_horizon=request.horizon,
+            confidence_level=request.confidence_level,
+            forecast_data=forecast_points,
+            benchmark_model=result.get("benchmark_model"),
+            benchmark_forecast=result.get("benchmark_forecast"),
+            forecast_value_added=result.get("forecast_value_added"),
+            confidence_score=result["confidence_score"],
+            requires_manual_review=result["requires_manual_review"],
+            anomaly_flags=result["anomaly_flags"],
+            mape=result["metrics"].get("mape"),
+            rmse=result["metrics"].get("rmse"),
+            mae=result["metrics"].get("mae"),
+            generated_at=forecast_record.generated_at,
+        )
+
+        forecast_results.append(forecast_response)
+
+    db.commit()
+
+    if not forecast_results:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No forecasts could be generated. Check data quality.",
+        )
+
+    return forecast_results

@@ -218,6 +218,79 @@ class ApiClient {
     const response = await this.client.delete(`/adjustments/${projectId}/adjustments/${adjustmentId}`);
     return response.data;
   }
+
+  // ============= Phase 3: Diagnostics =============
+  async getTimeseriesDiagnostics(projectId: number, tsId: string, frequency: string = 'D') {
+    const response = await this.client.get(`/diagnostics/${projectId}/timeseries/${tsId}/diagnostics`, {
+      params: { frequency }
+    });
+    return response.data;
+  }
+
+  async getForecastResiduals(projectId: number, forecastId: number) {
+    const response = await this.client.get(`/diagnostics/${projectId}/forecasts/${forecastId}/residuals`);
+    return response.data;
+  }
+
+  async getTimeseriesSummary(projectId: number, tsId: string) {
+    const response = await this.client.get(`/diagnostics/${projectId}/timeseries/${tsId}/summary`);
+    return response.data;
+  }
+
+  // ============= Phase 3: LLM Insights =============
+  async generateHistoryInsight(projectId: number, tsId: string) {
+    const response = await this.client.post(`/insights/${projectId}/timeseries/${tsId}/insights/history`);
+    return response.data;
+  }
+
+  async generateForecastInsight(projectId: number, forecastId: number) {
+    const response = await this.client.post(`/insights/${projectId}/forecasts/${forecastId}/insights/forecast`);
+    return response.data;
+  }
+
+  async generateQualityInsight(projectId: number, forecastId: number) {
+    const response = await this.client.post(`/insights/${projectId}/forecasts/${forecastId}/insights/quality`);
+    return response.data;
+  }
+
+  async getProjectInsights(projectId: number, filters?: {
+    insight_type?: string;
+    timeseries_id?: number;
+    forecast_id?: number;
+    limit?: number;
+  }) {
+    const response = await this.client.get(`/insights/${projectId}/insights`, {
+      params: filters
+    });
+    return response.data;
+  }
+
+  async deleteInsight(projectId: number, insightId: number) {
+    const response = await this.client.delete(`/insights/${projectId}/insights/${insightId}`);
+    return response.data;
+  }
+
+  // ============= Phase 3: Enhanced Forecasts =============
+  async generateEnhancedForecasts(
+    projectId: number,
+    data: {
+      timeseries_ids?: string[];
+      horizon: number;
+      confidence_level: number;
+    },
+    options?: {
+      use_events?: boolean;
+      use_exclusions?: boolean;
+      models?: string[];
+    }
+  ) {
+    const response = await this.client.post(
+      `/forecasts/${projectId}/generate-enhanced`,
+      data,
+      { params: options }
+    );
+    return response.data;
+  }
 }
 
 export const api = new ApiClient();

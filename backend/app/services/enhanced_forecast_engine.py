@@ -239,6 +239,62 @@ class EnhancedForecastEngine:
 
             return forecast_df, metrics
 
+    def _prepare_event_regressors(
+        self,
+        data: pd.DataFrame,
+        events: pd.DataFrame,
+        horizon: int,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Prepare event regressors for Prophet.
+
+        Creates binary indicator columns for each event type.
+        Returns data with regressor columns and future dataframe with same columns.
+        """
+        # Create a copy of data
+        data_with_events = data.copy()
+
+        # Get date range for future predictions
+        last_date = pd.to_datetime(data["ds"].max())
+        freq = pd.infer_freq(data["ds"])
+        if freq is None:
+            freq = "D"  # Default to daily
+
+        future_dates = pd.date_range(
+            start=last_date + pd.Timedelta(1, unit=freq[0]),
+            periods=horizon,
+            freq=freq
+        )
+        future_df = pd.DataFrame({"ds": future_dates})
+
+        # Process each event
+        for _, event in events.iterrows():
+            event_date = pd.to_datetime(event["event_date"])
+            event_type = event.get("event_type", "custom")
+            regressor_name = f"event_{event_type}"
+
+            # Add binary indicator for the event
+            # Mark event day and surrounding days (window of influence)
+            window = 1  # +/- 1 day around event
+
+            # Historical data
+            data_with_events[regressor_name] = 0.0
+            mask = (
+                (data_with_events["ds"] >= event_date - pd.Timedelta(days=window)) &
+                (data_with_events["ds"] <= event_date + pd.Timedelta(days=window))
+            )
+            data_with_events.loc[mask, regressor_name] = 1.0
+
+            # Future data
+            future_df[regressor_name] = 0.0
+            future_mask = (
+                (future_df["ds"] >= event_date - pd.Timedelta(days=window)) &
+                (future_df["ds"] <= event_date + pd.Timedelta(days=window))
+            )
+            future_df.loc[future_mask, regressor_name] = 1.0
+
+        return data_with_events, future_df
+
     def _prophet_forecast(
         self,
         data: pd.DataFrame,
@@ -246,7 +302,7 @@ class EnhancedForecastEngine:
         confidence_levels: List[int],
         events: Optional[pd.DataFrame] = None,
     ) -> Tuple[pd.DataFrame, Dict[str, float]]:
-        """Generate forecast using Prophet"""
+        """Generate forecast using Prophet with event regressors support"""
         # Prepare data for Prophet
         prophet_data = data[["ds", "y"]].copy()
 
@@ -258,15 +314,41 @@ class EnhancedForecastEngine:
             interval_width=max(confidence_levels) / 100,
         )
 
-        # Add events/holidays if provided
+        # Add events as regressors if provided
+        future_with_events = None
         if events is not None and not events.empty:
-            model.add_country_holidays(country_name="US")  # Can be customized
+            # Prepare event regressors
+            prophet_data, future_with_events = self._prepare_event_regressors(
+                prophet_data, events, horizon
+            )
+
+            # Add each event type as a regressor
+            event_types = [col for col in prophet_data.columns if col.startswith("event_")]
+            for event_type in event_types:
+                model.add_regressor(event_type)
+                logger.info(f"Added event regressor: {event_type}")
 
         # Fit model
         model.fit(prophet_data)
 
         # Make future dataframe
-        future = model.make_future_dataframe(periods=horizon)
+        if future_with_events is not None:
+            # Use the pre-built future with event regressors
+            # Need to merge with make_future_dataframe to get proper dates
+            future = model.make_future_dataframe(periods=horizon)
+
+            # Add event regressor columns to future
+            event_types = [col for col in prophet_data.columns if col.startswith("event_")]
+            for event_type in event_types:
+                # Merge with the prepared event data
+                future[event_type] = 0.0
+                # Set event values for matching dates
+                for idx, row in future_with_events.iterrows():
+                    mask = future["ds"] == row["ds"]
+                    if mask.any() and event_type in row:
+                        future.loc[mask, event_type] = row[event_type]
+        else:
+            future = model.make_future_dataframe(periods=horizon)
 
         # Predict
         forecast = model.predict(future)
