@@ -23,9 +23,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 # JWT settings
-SECRET_KEY = settings.secret_key if hasattr(settings, 'secret_key') else "your-secret-key-change-in-production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = settings.secret_key  # Must be set in .env - no default for security
+ALGORITHM = settings.algorithm if hasattr(settings, 'algorithm') else "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes if hasattr(settings, 'access_token_expire_minutes') else 30
 
 
 class AuthService:

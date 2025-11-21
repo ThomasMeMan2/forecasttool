@@ -227,11 +227,12 @@ Use clear, business-friendly language. Avoid technical jargon.
         """Create prompt for quality assessment"""
         mape = metrics.get("mape", 0)
 
+        fva_text = f"{fva:.1f}%" if fva is not None else "Not calculated"
         prompt = f"""Assess this forecast quality and provide recommendations in 2-3 sentences.
 
 Accuracy (MAPE): {mape:.1f}%
 Anomaly Flags: {", ".join(anomaly_flags) if anomaly_flags else "None"}
-Forecast Value Added: {fva:.1f}% if fva else "Not calculated"}
+Forecast Value Added: {fva_text}
 
 Provide:
 1. Overall quality rating (High/Medium/Low confidence)

@@ -1,0 +1,5 @@
+unique_id,event_name,event_date,event_type,description
+STORE_002,Stockout Event,2023-07-01,stockout,Major stockout lasting 2 weeks
+PRODUCT_B,Product Launch Promo,2023-04-15,promotion,Special promotional campaign for Product B
+PRODUCT_C,Discontinuation Notice,2023-10-01,custom,Product C marked for discontinuation
+REGION_NORTH,Weather Event,2023-02-10,custom,Severe winter storm affecting region

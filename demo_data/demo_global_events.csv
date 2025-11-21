@@ -1,0 +1,8 @@
+event_name,event_date,event_type,description
+Black Friday 2022,2022-11-25,holiday,Major shopping holiday with significant sales
+Christmas 2022,2022-12-25,holiday,Christmas holiday season
+New Year 2023,2023-01-01,holiday,New Year celebration
+Spring Campaign,2023-03-15,campaign,Marketing campaign launch
+Summer Sale,2023-06-01,campaign,Major summer sale event
+Black Friday 2023,2023-11-24,holiday,Black Friday sales event
+Price Increase,2023-09-01,price_change,10% price increase across product line
