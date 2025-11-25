@@ -90,7 +90,7 @@ git checkout claude/forecast-studio-app-016waL2pLPR6ZPREoeqzrBXF
 cp backend/.env.example backend/.env
 
 # Genereer een veilige SECRET_KEY
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+python -c "import secrets; print(secrets.token_urlsafe(32))"
 # Kopieer de output
 ```
 
