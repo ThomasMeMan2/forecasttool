@@ -136,6 +136,10 @@ ENABLE_LLM_INSIGHTS=False
 ### Stap 3: Docker Services Starten
 
 ```bash
+# Genereer package-lock.json file
+cd frontend && npm install
+
+```bash
 # Build en start alle services
 docker compose up --build
 
